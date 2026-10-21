@@ -1,0 +1,855 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#123c2d">
+
+  <title>FreshNest | Smart Fruit Basket</title>
+
+  <meta
+    name="description"
+    content="FreshNest smart fruit basket live monitoring, freshness alerts and sensor history."
+  >
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  >
+
+  <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script src="app.js" defer></script>
+</head>
+
+<body>
+  <div class="app-shell">
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#overview" aria-label="FreshNest home">
+        <span class="brand-icon">🌿</span>
+        <span class="brand-copy">
+          <strong>FreshNest</strong>
+          <small>SMART FRUIT CARE</small>
+        </span>
+      </a>
+
+      <div class="sidebar-label">WORKSPACE</div>
+
+      <nav class="navigation" aria-label="Main navigation">
+        <button class="nav-link active" data-page="overview">
+          <span class="nav-icon">◫</span>
+          <span>Overview</span>
+        </button>
+
+        <button class="nav-link" data-page="monitor">
+          <span class="nav-icon">◉</span>
+          <span>Live monitoring</span>
+        </button>
+
+        <button class="nav-link" data-page="alerts">
+          <span class="nav-icon">♧</span>
+          <span>Alerts</span>
+          <span class="nav-count" id="alertCount">0</span>
+        </button>
+
+        <button class="nav-link" data-page="history">
+          <span class="nav-icon">↗</span>
+          <span>Sensor history</span>
+        </button>
+
+        <div class="sidebar-label secondary-label">PREFERENCES</div>
+
+        <button class="nav-link" data-page="settings">
+          <span class="nav-icon">⚙</span>
+          <span>Settings</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <div class="device-mini">
+          <span class="status-dot" id="sidebarStatusDot"></span>
+          <div>
+            <strong>Basket 01</strong>
+            <small id="sidebarConnection">Connecting...</small>
+          </div>
+          <span class="device-symbol">⌁</span>
+        </div>
+
+        <div class="sidebar-footer">
+          <span>FreshNest</span>
+          <span>v1.0.0</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main application -->
+    <main class="main-content">
+
+      <!-- Top header -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <button
+            class="menu-button"
+            id="menuButton"
+            aria-label="Toggle navigation"
+            type="button"
+          >☰</button>
+
+          <div>
+            <div class="breadcrumb">FreshNest <span>/</span> <strong id="breadcrumbPage">Overview</strong></div>
+            <p class="header-subtitle" id="headerSubtitle">
+              Your fruit basket, intelligently monitored.
+            </p>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <div class="connection-pill" id="connectionPill">
+            <span class="status-dot" id="connectionDot"></span>
+            <span id="connectionText">Connecting to device</span>
+          </div>
+
+          <button
+            class="icon-button"
+            id="refreshButton"
+            type="button"
+            title="Refresh dashboard"
+            aria-label="Refresh dashboard"
+          >↻</button>
+
+          <button
+            class="profile-button"
+            id="adminButton"
+            type="button"
+            title="Admin settings"
+          >
+            <span class="avatar">F</span>
+            <span class="profile-copy">
+              <strong>Administrator</strong>
+              <small>Basket manager</small>
+            </span>
+          </button>
+        </div>
+      </header>
+
+      <!-- API warning -->
+      <div class="notice-banner hidden" id="apiNotice" role="status">
+        <span>ⓘ</span>
+        <div>
+          <strong>Backend connection unavailable</strong>
+          <p id="apiNoticeText">
+            Check the backend URL in the application configuration.
+          </p>
+        </div>
+      </div>
+
+      <!-- OVERVIEW PAGE -->
+      <section class="page active" id="page-overview">
+        <div class="welcome-row">
+          <div>
+            <div class="eyebrow"><span class="eyebrow-line"></span> SMART FRUIT MANAGEMENT</div>
+            <h1>Your basket, <span>in balance.</span></h1>
+            <p class="page-description">
+              Real-time insights to help you keep your fruit supply fresh.
+            </p>
+          </div>
+
+          <div class="updated-chip">
+            <span class="pulse-dot"></span>
+            <span>Last update</span>
+            <strong id="lastUpdated">Waiting for data</strong>
+          </div>
+        </div>
+
+        <!-- Main statistics -->
+        <div class="stats-grid">
+          <article class="stat-card fruit-stat-card">
+            <div class="stat-topline">
+              <span class="stat-label">FRUIT REMAINING</span>
+              <span class="stat-icon fruit-icon">◉</span>
+            </div>
+
+            <div class="stat-value">
+              <strong id="fruitPercentage">--</strong>
+              <span>%</span>
+            </div>
+
+            <div class="progress-track">
+              <div class="progress-fill" id="fruitProgress" style="width:0%"></div>
+            </div>
+
+            <div class="stat-bottom">
+              <span id="fruitStatus">Waiting for sensor</span>
+              <span id="fruitDistance">-- cm</span>
+            </div>
+          </article>
+
+          <article class="stat-card">
+            <div class="stat-topline">
+              <span class="stat-label">GAS SENSOR</span>
+              <span class="stat-icon gas-icon">⌁</span>
+            </div>
+
+            <div class="stat-value">
+              <strong id="gasReading">--</strong>
+              <span class="unit-label">RAW</span>
+            </div>
+
+            <div class="stat-bottom gas-bottom">
+              <span id="gasStatus">Awaiting reading</span>
+              <span id="gasThresholdLabel">Threshold: unset</span>
+            </div>
+
+            <div class="mini-meter">
+              <div id="gasMeter" style="width:0%"></div>
+            </div>
+          </article>
+
+          <article class="stat-card">
+            <div class="stat-topline">
+              <span class="stat-label">DEVICE STATUS</span>
+              <span class="stat-icon device-icon">⌘</span>
+            </div>
+
+            <div class="device-state">
+              <span class="large-status-dot" id="deviceStatusDot"></span>
+              <strong id="deviceStatus">Connecting</strong>
+            </div>
+
+            <p class="stat-description" id="deviceDescription">
+              Waiting for the first sensor message.
+            </p>
+
+            <div class="stat-bottom">
+              <span>MQTT connection</span>
+              <strong id="mqttStateLabel">Checking...</strong>
+            </div>
+          </article>
+
+          <article class="stat-card">
+            <div class="stat-topline">
+              <span class="stat-label">ACTIVE ALERTS</span>
+              <span class="stat-icon alert-icon">!</span>
+            </div>
+
+            <div class="stat-value">
+              <strong id="activeAlerts">0</strong>
+              <span class="unit-label">RECENT</span>
+            </div>
+
+            <p class="stat-description">
+              Recent alerts generated by your monitoring system.
+            </p>
+
+            <div class="stat-bottom">
+              <span>Alert history</span>
+              <button class="text-button" data-goto="alerts" type="button">
+                View alerts →
+              </button>
+            </div>
+          </article>
+        </div>
+
+        <!-- Overview content -->
+        <div class="content-grid overview-grid">
+          <article class="panel chart-panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Fruit level activity</h2>
+                <p>Recent fruit percentage readings</p>
+              </div>
+
+              <span class="live-tag">
+                <span class="pulse-dot"></span>
+                LIVE
+              </span>
+            </div>
+
+            <div class="chart-summary">
+              <div>
+                <span class="chart-big-number" id="chartCurrentValue">--%</span>
+                <small>Current level</small>
+              </div>
+              <div class="chart-legend">
+                <span class="legend-dot"></span>
+                Fruit percentage
+              </div>
+            </div>
+
+            <div class="chart-container">
+              <canvas
+                id="fruitChart"
+                role="img"
+                aria-label="Chart showing fruit percentage history"
+              ></canvas>
+              <div class="chart-empty" id="chartEmpty">
+                Sensor history will appear when readings arrive.
+              </div>
+            </div>
+
+            <div class="chart-footer">
+              <span id="chartTimeRange">Recent readings</span>
+              <button class="text-button" data-goto="history" type="button">
+                Full history →
+              </button>
+            </div>
+          </article>
+
+          <article class="panel basket-panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Basket intelligence</h2>
+                <p>Current basket condition</p>
+              </div>
+              <span class="basket-heading-icon">♧</span>
+            </div>
+
+            <div class="basket-visual">
+              <div class="basket-glow"></div>
+              <div class="basket-emoji" id="basketEmoji">🍎</div>
+              <div class="basket-level-track">
+                <div class="basket-level-fill" id="basketLevelFill"></div>
+              </div>
+              <div class="basket-level-label" id="basketLevelLabel">--% filled</div>
+            </div>
+
+            <div class="basket-details">
+              <div>
+                <span class="detail-key">Basket height</span>
+                <strong id="basketHeightLabel">40 cm</strong>
+              </div>
+              <div>
+                <span class="detail-key">Low-level trigger</span>
+                <strong id="lowThresholdLabel">15%</strong>
+              </div>
+              <div>
+                <span class="detail-key">Ordering</span>
+                <strong class="muted-value">Disabled</strong>
+              </div>
+            </div>
+
+            <button class="secondary-button full-button" data-goto="settings" type="button">
+              Configure basket →
+            </button>
+          </article>
+        </div>
+
+        <!-- Recent alerts -->
+        <article class="panel recent-alerts-panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Recent alerts</h2>
+              <p>Important updates from your basket</p>
+            </div>
+            <button class="text-button" data-goto="alerts" type="button">
+              View all →
+            </button>
+          </div>
+
+          <div class="alerts-list" id="recentAlerts">
+            <div class="empty-state">
+              <span class="empty-state-icon">✓</span>
+              <strong>All quiet for now</strong>
+              <p>New alerts will appear here when sensor readings cross configured thresholds.</p>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <!-- LIVE MONITORING PAGE -->
+      <section class="page" id="page-monitor">
+        <div class="page-heading-row">
+          <div>
+            <div class="eyebrow">DEVICE CENTER</div>
+            <h1>Live monitoring</h1>
+            <p class="page-description">
+              Monitor the latest readings received from your ESP32.
+            </p>
+          </div>
+          <span class="live-tag"><span class="pulse-dot"></span> REAL-TIME</span>
+        </div>
+
+        <div class="monitor-grid">
+          <article class="panel monitor-main-card">
+            <div class="panel-heading">
+              <div>
+                <h2>Fruit level</h2>
+                <p>Ultrasonic distance sensor</p>
+              </div>
+              <span class="stat-icon fruit-icon">◉</span>
+            </div>
+
+            <div class="circular-meter" id="fruitCircularMeter">
+              <div class="circular-meter-inner">
+                <strong id="monitorFruitPercentage">--%</strong>
+                <span>FRUIT REMAINING</span>
+              </div>
+            </div>
+
+            <div class="monitor-readings">
+              <div>
+                <span>Measured distance</span>
+                <strong id="monitorDistance">-- cm</strong>
+              </div>
+              <div>
+                <span>Basket condition</span>
+                <strong id="monitorFruitStatus">Waiting</strong>
+              </div>
+            </div>
+          </article>
+
+          <article class="panel monitor-gas-card">
+            <div class="panel-heading">
+              <div>
+                <h2>Gas sensor</h2>
+                <p>MQ-3 raw analog reading</p>
+              </div>
+              <span class="stat-icon gas-icon">⌁</span>
+            </div>
+
+            <div class="gas-big-reading">
+              <strong id="monitorGasReading">--</strong>
+              <span>/ 4095</span>
+            </div>
+
+            <div class="progress-track gas-track">
+              <div class="progress-fill gas-fill" id="monitorGasProgress"></div>
+            </div>
+
+            <div class="monitor-readings">
+              <div>
+                <span>Configured threshold</span>
+                <strong id="monitorGasThreshold">Not set</strong>
+              </div>
+              <div>
+                <span>Sensor state</span>
+                <strong id="monitorGasStatus">Awaiting data</strong>
+              </div>
+            </div>
+
+            <p class="info-note">
+              The MQ-3 detects certain vapours. Its reading alone cannot confirm
+              whether fruit is spoiled.
+            </p>
+          </article>
+        </div>
+
+        <article class="panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Device diagnostics</h2>
+              <p>Connection and sensor information</p>
+            </div>
+          </div>
+
+          <div class="diagnostics-grid">
+            <div class="diagnostic-item">
+              <span>MQTT connection</span>
+              <strong id="diagMqtt">Checking...</strong>
+            </div>
+            <div class="diagnostic-item">
+              <span>Last message</span>
+              <strong id="diagLastMessage">No messages</strong>
+            </div>
+            <div class="diagnostic-item">
+              <span>Sensor validity</span>
+              <strong id="diagSensorValidity">Unknown</strong>
+            </div>
+            <div class="diagnostic-item">
+              <span>Device name</span>
+              <strong id="diagDeviceName">FreshNest Basket</strong>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <!-- ALERTS PAGE -->
+      <section class="page" id="page-alerts">
+        <div class="page-heading-row">
+          <div>
+            <div class="eyebrow">NOTIFICATIONS</div>
+            <h1>Alerts & events</h1>
+            <p class="page-description">
+              Review low-fruit and high-gas alerts generated by your basket.
+            </p>
+          </div>
+
+          <button class="secondary-button" id="refreshAlertsButton" type="button">
+            ↻ Refresh alerts
+          </button>
+        </div>
+
+        <div class="alert-summary-grid">
+          <article class="panel alert-summary-card">
+            <span class="summary-icon low-fruit-summary">↓</span>
+            <div>
+              <span>Low-fruit alerts</span>
+              <strong id="lowFruitAlertCount">0</strong>
+            </div>
+          </article>
+
+          <article class="panel alert-summary-card">
+            <span class="summary-icon high-gas-summary">⌁</span>
+            <div>
+              <span>High-gas alerts</span>
+              <strong id="highGasAlertCount">0</strong>
+            </div>
+          </article>
+
+          <article class="panel alert-summary-card">
+            <span class="summary-icon email-summary">✉</span>
+            <div>
+              <span>Emails sent</span>
+              <strong id="emailsSentCount">0</strong>
+            </div>
+          </article>
+        </div>
+
+        <article class="panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Alert history</h2>
+              <p>Most recent events appear first</p>
+            </div>
+            <span class="neutral-tag">Last 100 alerts</span>
+          </div>
+
+          <div class="alerts-list" id="allAlerts">
+            <div class="empty-state">
+              <span class="empty-state-icon">✓</span>
+              <strong>No alerts yet</strong>
+              <p>Alerts will appear here when configured conditions are triggered.</p>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <!-- HISTORY PAGE -->
+      <section class="page" id="page-history">
+        <div class="page-heading-row">
+          <div>
+            <div class="eyebrow">DATA & ANALYTICS</div>
+            <h1>Sensor history</h1>
+            <p class="page-description">
+              Review recorded readings retained for the last seven days.
+            </p>
+          </div>
+
+          <button class="secondary-button" id="exportHistoryButton" type="button">
+            ↓ Export CSV
+          </button>
+        </div>
+
+        <div class="history-stats-grid">
+          <article class="panel history-stat">
+            <span>Total readings loaded</span>
+            <strong id="historyTotal">0</strong>
+          </article>
+
+          <article class="panel history-stat">
+            <span>Latest fruit level</span>
+            <strong id="historyLatestFruit">--%</strong>
+          </article>
+
+          <article class="panel history-stat">
+            <span>Latest gas reading</span>
+            <strong id="historyLatestGas">--</strong>
+          </article>
+        </div>
+
+        <article class="panel chart-panel history-chart-panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Fruit level over time</h2>
+              <p>Recorded sensor data</p>
+            </div>
+          </div>
+
+          <div class="chart-container history-chart-container">
+            <canvas id="historyChart" role="img" aria-label="Historical fruit readings"></canvas>
+            <div class="chart-empty" id="historyChartEmpty">
+              History will appear after the first sensor readings.
+            </div>
+          </div>
+        </article>
+
+        <article class="panel table-panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Reading log</h2>
+              <p>Most recent measurements first</p>
+            </div>
+          </div>
+
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Fruit level</th>
+                  <th>Distance</th>
+                  <th>Gas raw</th>
+                  <th>Sensor</th>
+                </tr>
+              </thead>
+              <tbody id="historyTableBody">
+                <tr>
+                  <td colspan="5" class="table-empty">
+                    No sensor readings received yet.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <!-- SETTINGS PAGE -->
+      <section class="page" id="page-settings">
+        <div class="page-heading-row">
+          <div>
+            <div class="eyebrow">SYSTEM CONFIGURATION</div>
+            <h1>Settings</h1>
+            <p class="page-description">
+              Configure basket calibration, alert thresholds and notifications.
+            </p>
+          </div>
+
+          <span class="settings-save-status" id="settingsSaveStatus">
+            Changes not saved
+          </span>
+        </div>
+
+        <div class="settings-layout">
+          <div class="settings-main">
+
+            <form id="settingsForm">
+              <article class="panel settings-panel">
+                <div class="settings-section-heading">
+                  <span class="settings-section-icon">◉</span>
+                  <div>
+                    <h2>Basket calibration</h2>
+                    <p>Set the dimensions used to calculate fruit percentage.</p>
+                  </div>
+                </div>
+
+                <div class="form-grid">
+                  <label class="form-field">
+                    <span>Basket height (cm)</span>
+                    <input
+                      type="number"
+                      id="basketHeightInput"
+                      name="basketHeightCm"
+                      min="5"
+                      max="200"
+                      step="0.5"
+                      value="40"
+                      required
+                    >
+                    <small>Total inside height from the sensor reference point.</small>
+                  </label>
+
+                  <label class="form-field">
+                    <span>Full basket distance (cm)</span>
+                    <input
+                      type="number"
+                      id="fullDistanceInput"
+                      name="fullDistanceCm"
+                      min="0"
+                      max="199"
+                      step="0.1"
+                      value="2"
+                      required
+                    >
+                    <small>Distance reported when the fruit is at the full level.</small>
+                  </label>
+                </div>
+              </article>
+
+              <article class="panel settings-panel">
+                <div class="settings-section-heading">
+                  <span class="settings-section-icon">↓</span>
+                  <div>
+                    <h2>Fruit level alerts</h2>
+                    <p>Choose when FreshNest should notify you about low fruit.</p>
+                  </div>
+                </div>
+
+                <label class="form-field">
+                  <span>Low fruit threshold (%)</span>
+                  <div class="input-with-suffix">
+                    <input
+                      type="number"
+                      id="lowThresholdInput"
+                      name="lowFruitThreshold"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value="15"
+                      required
+                    >
+                    <span>%</span>
+                  </div>
+                  <small>An alert is triggered when fruit remaining drops below this percentage.</small>
+                </label>
+
+                <label class="toggle-row">
+                  <span class="toggle-copy">
+                    <strong>Low-fruit email alerts</strong>
+                    <small>Send an email when the fruit level crosses below the threshold.</small>
+                  </span>
+                  <input type="checkbox" id="lowAlertsEnabled" checked>
+                  <span class="toggle-switch"></span>
+                </label>
+              </article>
+
+              <article class="panel settings-panel">
+                <div class="settings-section-heading">
+                  <span class="settings-section-icon gas-settings-icon">⌁</span>
+                  <div>
+                    <h2>Gas sensor alerts</h2>
+                    <p>Set a calibrated raw reading threshold for the MQ-3 sensor.</p>
+                  </div>
+                </div>
+
+                <label class="form-field">
+                  <span>High gas threshold (raw value)</span>
+                  <input
+                    type="number"
+                    id="gasThresholdInput"
+                    name="gasThreshold"
+                    min="0"
+                    max="4095"
+                    step="1"
+                    placeholder="Leave blank until calibrated"
+                  >
+                  <small>
+                    ESP32 ADC readings are typically 0–4095 at 12-bit resolution.
+                    Calibrate with real readings before enabling this alert.
+                  </small>
+                </label>
+
+                <label class="toggle-row">
+                  <span class="toggle-copy">
+                    <strong>High-gas email alerts</strong>
+                    <small>Send an email when the configured threshold is reached.</small>
+                  </span>
+                  <input type="checkbox" id="highGasAlertsEnabled" checked>
+                  <span class="toggle-switch"></span>
+                </label>
+              </article>
+
+              <article class="panel settings-panel">
+                <div class="settings-section-heading">
+                  <span class="settings-section-icon">✉</span>
+                  <div>
+                    <h2>Email notifications</h2>
+                    <p>Choose where your FreshNest alerts should be sent.</p>
+                  </div>
+                </div>
+
+                <label class="form-field">
+                  <span>Receiving email address</span>
+                  <input
+                    type="email"
+                    id="recipientEmailInput"
+                    name="recipientEmail"
+                    value="rdstechnics@gmail.com"
+                    maxlength="254"
+                    required
+                  >
+                  <small>
+                    This address receives low-fruit and high-gas notifications.
+                  </small>
+                </label>
+
+                <div class="email-actions">
+                  <button class="primary-button" id="saveSettingsButton" type="submit">
+                    Save settings
+                  </button>
+
+                  <button class="secondary-button" id="testEmailButton" type="button">
+                    Send test email
+                  </button>
+                </div>
+
+                <p class="form-message" id="settingsMessage" role="status"></p>
+              </article>
+            </form>
+
+            <article class="panel settings-panel">
+              <div class="settings-section-heading">
+                <span class="settings-section-icon">🛒</span>
+                <div>
+                  <h2>Automatic ordering</h2>
+                  <p>Ordering is not connected yet.</p>
+                </div>
+              </div>
+
+              <div class="feature-disabled">
+                <span class="feature-disabled-icon">🔒</span>
+                <div>
+                  <strong>Ordering disabled</strong>
+                  <p>
+                    FreshNest currently monitors fruit levels and sends email
+                    alerts only. No products will be purchased automatically.
+                  </p>
+                </div>
+                <span class="neutral-tag">Not configured</span>
+              </div>
+            </article>
+          </div>
+
+          <aside class="settings-side">
+            <article class="panel settings-info-panel">
+              <span class="info-panel-icon">🛡</span>
+              <h2>Secure configuration</h2>
+              <p>
+                Admin-only settings are saved by the FreshNest backend.
+                MQTT credentials and email passwords must remain in Render
+                environment variables.
+              </p>
+            </article>
+
+            <article class="panel settings-info-panel">
+              <span class="info-panel-icon">◷</span>
+              <h2>History retention</h2>
+              <p>
+                Sensor readings are retained for seven days. JSON storage
+                requires a persistent Render disk to survive service restarts
+                and deployments.
+              </p>
+            </article>
+
+            <article class="panel settings-info-panel">
+              <span class="info-panel-icon">⌁</span>
+              <h2>Sensor calibration</h2>
+              <p>
+                The ultrasonic sensor estimates fruit level from the empty space
+                above the fruit. The MQ-3 reading is a raw sensor value, not a
+                direct measurement of fruit freshness.
+              </p>
+            </article>
+          </aside>
+        </div>
+      </section>
+
+      <!-- Footer -->
+      <footer class="app-footer">
+        <span>🌿 FreshNest Smart Fruit Basket</span>
+        <span>Made for smarter fruit care.</span>
+      </footer>
+    </main>
+  </div>
+
+  <!-- Toast notifications -->
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+</body>
+</html>

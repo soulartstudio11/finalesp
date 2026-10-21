@@ -1,0 +1,68 @@
+
+services:
+  - type: web
+    name: freshnest-backend
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+
+    plan: free
+
+    disk:
+      name: freshnest-data
+      mountPath: /var/data
+      sizeGB: 1
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      - key: DATA_DIR
+        value: /var/data/freshnest
+
+      - key: PORT
+        value: "10000"
+
+      - key: ADMIN_USERNAME
+        value: admin
+
+      - key: ADMIN_PASSWORD
+        sync: false
+
+      - key: MQTT_HOST
+        value: f8b09f99.ala.eu-central-1.emqxsl.com
+
+      - key: MQTT_PORT
+        value: "8883"
+
+      - key: MQTT_TOPIC
+        value: freshnest/basket01/telemetry
+
+      - key: MQTT_USERNAME
+        sync: false
+
+      - key: MQTT_PASSWORD
+        sync: false
+
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+
+      - key: SMTP_PORT
+        value: "465"
+
+      - key: SMTP_SECURE
+        value: "true"
+
+      - key: SMTP_USER
+        sync: false
+
+      - key: SMTP_PASSWORD
+        sync: false
+
+      - key: SMTP_FROM
+        sync: false
+
+      - key: FRONTEND_ORIGINS
+        value: https://soulartstudio11.github.io
